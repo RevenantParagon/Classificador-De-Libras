@@ -55,6 +55,8 @@ namespace Classificador
             {
                 Imagem = (Imagem)Abrir();
                 pictureBox1.Image = Imagem.ToBitmap();
+                NormalizacaoDeCor();
+                MascaraLimiar();
             }
             catch (Exception)
             {
@@ -90,9 +92,27 @@ namespace Classificador
             pictureBox2.Image = Imagem.ToBitmap();
         }
 
-        private void Button2_Click(object sender, EventArgs e)
+        private void MascaraLimiar()
         {
-            NormalizacaoDeCor();
+            Imagem cinza = Imagem.ToGrayscale();
+            Imagem binaria = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
+
+            for (int a = 0; a < Imagem.Altura; a++)
+            {
+                for (int l = 0; l < Imagem.Largura; l++)
+                {
+                    if (cinza[a, l] <= 85)
+                    {
+                        binaria[a, l] = 0;
+                    }
+                    else
+                    {
+                        binaria[a, l] = 255;
+                    }
+                }
+            }
+            pictureBox3.Image = binaria.ToBitmap();
         }
+
     }
 }
