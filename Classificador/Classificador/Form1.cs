@@ -19,6 +19,8 @@ namespace Classificador
         }
 
         private Imagem Imagem;
+        private Imagem Normalizada;
+        private Imagem Binaria;
 
         private object Abrir()
         {
@@ -66,7 +68,7 @@ namespace Classificador
 
         private void NormalizacaoDeCor()
         {
-            Imagem resultante = new Imagem(Imagem.Largura, Imagem.Altura, Imagem.Tipo);
+            Normalizada = new Imagem(Imagem.Largura, Imagem.Altura, Imagem.Tipo);
 
             double total = 0;
             double vermelho = 0;
@@ -83,19 +85,18 @@ namespace Classificador
                     verde = (Imagem[a, l, 1] / total) * 255;
                     azul = (Imagem[a, l, 2] / total) * 255;
 
-                    resultante[a, l, 0] = vermelho;
-                    resultante[a, l, 1] = verde;
-                    resultante[a, l, 2] = azul;
+                    Normalizada[a, l, 0] = vermelho;
+                    Normalizada[a, l, 1] = verde;
+                    Normalizada[a, l, 2] = azul;
                 }
             }
-            Imagem = resultante;
-            pictureBox2.Image = Imagem.ToBitmap();
+            pictureBox2.Image = Normalizada.ToBitmap();
         }
 
         private void MascaraLimiar()
         {
-            Imagem cinza = Imagem.ToGrayscale();
-            Imagem binaria = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
+            Imagem cinza = Normalizada.ToGrayscale();
+            Binaria = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
 
             for (int a = 0; a < Imagem.Altura; a++)
             {
@@ -103,15 +104,15 @@ namespace Classificador
                 {
                     if (cinza[a, l] <= 85)
                     {
-                        binaria[a, l] = 0;
+                        Binaria[a, l] = 0;
                     }
                     else
                     {
-                        binaria[a, l] = 255;
+                        Binaria[a, l] = 255;
                     }
                 }
             }
-            pictureBox3.Image = binaria.ToBitmap();
+            pictureBox3.Image = Binaria.ToBitmap();
         }
 
     }
