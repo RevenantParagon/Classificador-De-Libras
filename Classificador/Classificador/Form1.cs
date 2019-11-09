@@ -20,7 +20,7 @@ namespace Classificador
 
         private Imagem Imagem;
         private Imagem Normalizada;
-        private Imagem Binaria;
+        private Imagem Segmentada;
 
         private object Abrir()
         {
@@ -58,7 +58,7 @@ namespace Classificador
                 Imagem = (Imagem)Abrir();
                 pictureBox1.Image = Imagem.ToBitmap();
                 NormalizacaoDeCor();
-                MascaraLimiar();
+                Segmentar();
             }
             catch (Exception)
             {
@@ -93,27 +93,32 @@ namespace Classificador
             pictureBox2.Image = Normalizada.ToBitmap();
         }
 
-        private void MascaraLimiar()
+        private void Segmentar()
         {
-            Imagem cinza = Normalizada.ToGrayscale();
-            Binaria = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
+            Segmentada = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
 
             for (int a = 0; a < Imagem.Altura; a++)
             {
                 for (int l = 0; l < Imagem.Largura; l++)
                 {
-                    if (cinza[a, l] <= 85)
+                    double max = Math.Max(Math.Max(Normalizada[a, l, 0], Normalizada[a, l, 1]), Normalizada[a, l, 2]);
+                    double min = Math.Min(Math.Min(Normalizada[a, l, 0], Normalizada[a, l, 1]), Normalizada[a, l, 2]);
+                    double modulo = Normalizada[a, l, 0] - Normalizada[a, l, 1];
+                    if (modulo < 0)
                     {
-                        Binaria[a, l] = 0;
+                        modulo = modulo * -1;
+                    }
+                    if (Normalizada[a, l, 0] > 95 && Normalizada[a, l, 1] > 40 && Normalizada[a, l, 2] > 20 && max - min > 15 && modulo > 15 && Normalizada[a, l, 0] > Normalizada[a, l, 1] && Normalizada[a, l, 0] > Normalizada[a, l, 2] && Normalizada[a, l, 1] > Normalizada[a, l, 2])
+                    {
+                        Segmentada[a, l] = 0;
                     }
                     else
                     {
-                        Binaria[a, l] = 255;
+                        Segmentada[a, l] = 255;
                     }
                 }
             }
-            pictureBox3.Image = Binaria.ToBitmap();
+            pictureBox3.Image = Segmentada.ToBitmap();
         }
-
     }
 }
