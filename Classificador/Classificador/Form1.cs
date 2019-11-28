@@ -21,6 +21,8 @@ namespace Classificador
         private Imagem Imagem;
         private Imagem Normalizada;
         private Imagem Segmentada;
+        private Imagem Mediana;
+        private Imagem Recortada;
 
         private object Abrir()
         {
@@ -59,11 +61,61 @@ namespace Classificador
                 pictureBox1.Image = Imagem.ToBitmap();
                 NormalizacaoDeCor();
                 Segmentar();
+                double[] vetor = new double[9];
+
+                Imagem R = new Imagem(Segmentada.Largura, Segmentada.Altura);
+
+                for (int i = 2; i < Segmentada.Altura - 2; i++)
+                {
+                    for (int j = 2; j < Segmentada.Largura - 2; j++)
+                    {
+                        vetor[0] = (Segmentada[i - 1, j - 1]);
+                        vetor[1] = (Segmentada[i - 1, j]);
+                        vetor[2] = (Segmentada[i - 1, j + 1]);
+                        vetor[3] = (Segmentada[i, j - 1]);
+                        vetor[4] = (Segmentada[i, j + 1]);
+                        vetor[5] = (Segmentada[i + 1, j - 1]);
+                        vetor[6] = (Segmentada[i + 1, j]);
+                        vetor[7] = (Segmentada[i + 1, j + 1]);
+                        vetor[8] = (Segmentada[i, j]);
+
+                        vetor = quickSort(vetor);
+
+                        R[i, j] = vetor[4];
+                    }
+                }
+                Mediana = R;
+                pictureBox4.Image = R.ToBitmap();
+                Recorte();
             }
             catch (Exception)
             {
                 MessageBox.Show("Houve um erro na seleção de imagem", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+
+        }
+
+        private void Recorte()
+        {
+            Recortada = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Colorida);
+            for (int i = 0; i < Mediana.Altura; i++)
+            {
+                for (int j = 0; j < Mediana.Largura; j++)
+                {
+                    for(int c = 0; c < 3; c++)
+                    {
+                        if (Mediana[i, j] == 255)
+                        {
+                            Recortada[i, j, c] = 0;
+                        }
+                        else
+                        {
+                            Recortada[i, j, c] = Imagem[i, j, c];
+                        }
+                    }
+                }
+            }
+            pictureBox5.Image = Recortada.ToBitmap();
         }
 
         private void NormalizacaoDeCor()
@@ -119,6 +171,58 @@ namespace Classificador
                 }
             }
             pictureBox3.Image = Segmentada.ToBitmap();
+        }
+
+        public static double[] quickSort(double[] vetor)
+        {
+            int inicio = 0;
+            int fim = vetor.Length - 1;
+
+            quickSort(vetor, inicio, fim);
+
+            return vetor;
+        }
+
+        private static void quickSort(double[] vetor, int inicio, int fim)
+        {
+            if (inicio < fim)
+            {
+                double p = vetor[inicio];
+                int i = inicio + 1;
+                int f = fim;
+
+                while (i <= f)
+                {
+                    if (vetor[i] <= p)
+                    {
+                        i++;
+                    }
+                    else if (p < vetor[f])
+                    {
+                        f--;
+                    }
+                    else
+                    {
+                        double troca = vetor[i];
+                        vetor[i] = vetor[f];
+                        vetor[f] = troca;
+                        i++;
+                        f--;
+                    }
+                }
+
+                vetor[inicio] = vetor[f];
+                vetor[f] = p;
+
+                quickSort(vetor, inicio, f - 1);
+                quickSort(vetor, f + 1, fim);
+            }
+        }
+
+        private void Button2_Click(object sender, EventArgs e)
+        {
+            Imagem = (Imagem)Abrir();
+            pictureBox6.Image = Imagem.ToBitmap();
         }
     }
 }
