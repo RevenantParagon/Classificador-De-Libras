@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +26,11 @@ namespace Classificador
         private Imagem Mediana;
         private Imagem Recortada;
 
+        private Imagem Molde;
+        /// <summary>
+        /// Abre uma caixa de seleção para selecionar uma imagem e converte-la em um objeto tipo Imagem da Biblioteca DIPLi
+        /// </summary>
+        /// <returns></returns>
         private object Abrir()
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -41,10 +48,12 @@ namespace Classificador
 
             DialogResult dr = openFileDialog.ShowDialog();
             Imagem image;
-            if(dr == System.Windows.Forms.DialogResult.OK)
+            if (dr == System.Windows.Forms.DialogResult.OK)
             {
                 string file = openFileDialog.FileName.ToString();
                 image = new Imagem(file);
+                Bitmap bit = ResizeImage(image.ToBitmap(), 85, 112);
+                image = new Imagem(bit);
                 return image;
             }
             else
@@ -53,13 +62,40 @@ namespace Classificador
             }
         }
 
+        Bitmap ResizeImage(Image image, int width, int height)
+        {
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = CompositingMode.SourceCopy;
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
+        }
+
+
         private void Button1_Click(object sender, EventArgs e)
         {
             try
             {
                 Imagem = (Imagem)Abrir();
+                label1.Text = "";
                 pictureBox1.Image = Imagem.ToBitmap();
-                NormalizacaoDeCor();
                 Segmentar();
                 double[] vetor = new double[9];
 
@@ -85,7 +121,6 @@ namespace Classificador
                     }
                 }
                 Mediana = R;
-                pictureBox4.Image = R.ToBitmap();
                 Recorte();
             }
             catch (Exception)
@@ -95,6 +130,9 @@ namespace Classificador
 
         }
 
+        /// <summary>
+        /// Recorta a imagem a partir de uma mascara
+        /// </summary>
         private void Recorte()
         {
             Recortada = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Colorida);
@@ -102,7 +140,7 @@ namespace Classificador
             {
                 for (int j = 0; j < Mediana.Largura; j++)
                 {
-                    for(int c = 0; c < 3; c++)
+                    for (int c = 0; c < 3; c++)
                     {
                         if (Mediana[i, j] == 255)
                         {
@@ -115,36 +153,11 @@ namespace Classificador
                     }
                 }
             }
-            pictureBox5.Image = Recortada.ToBitmap();
         }
 
-        private void NormalizacaoDeCor()
-        {
-            Normalizada = new Imagem(Imagem.Largura, Imagem.Altura, Imagem.Tipo);
-
-            double total = 0;
-            double vermelho = 0;
-            double verde = 0;
-            double azul = 0;
-
-            for (int a = 0; a < Imagem.Altura; a++)
-            {
-                for (int l = 0; l < Imagem.Largura; l++)
-                {
-
-                    total = Imagem[a, l, 0] + Imagem[a, l, 1] + Imagem[a, l, 2];
-                    vermelho = (Imagem[a, l, 0] / total) * 255;
-                    verde = (Imagem[a, l, 1] / total) * 255;
-                    azul = (Imagem[a, l, 2] / total) * 255;
-
-                    Normalizada[a, l, 0] = vermelho;
-                    Normalizada[a, l, 1] = verde;
-                    Normalizada[a, l, 2] = azul;
-                }
-            }
-            pictureBox2.Image = Normalizada.ToBitmap();
-        }
-
+        /// <summary>
+        /// Cria uma mascara binaria a partir da imagem
+        /// </summary>
         private void Segmentar()
         {
             Segmentada = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Monocromatica);
@@ -153,14 +166,14 @@ namespace Classificador
             {
                 for (int l = 0; l < Imagem.Largura; l++)
                 {
-                    double max = Math.Max(Math.Max(Normalizada[a, l, 0], Normalizada[a, l, 1]), Normalizada[a, l, 2]);
-                    double min = Math.Min(Math.Min(Normalizada[a, l, 0], Normalizada[a, l, 1]), Normalizada[a, l, 2]);
-                    double modulo = Normalizada[a, l, 0] - Normalizada[a, l, 1];
+                    double max = Math.Max(Math.Max(Imagem[a, l, 0], Imagem[a, l, 1]), Imagem[a, l, 2]);
+                    double min = Math.Min(Math.Min(Imagem[a, l, 0], Imagem[a, l, 1]), Imagem[a, l, 2]);
+                    double modulo = Imagem[a, l, 0] - Imagem[a, l, 1];
                     if (modulo < 0)
                     {
                         modulo = modulo * -1;
                     }
-                    if (Normalizada[a, l, 0] > 95 && Normalizada[a, l, 1] > 40 && Normalizada[a, l, 2] > 20 && max - min > 15 && modulo > 15 && Normalizada[a, l, 0] > Normalizada[a, l, 1] && Normalizada[a, l, 0] > Normalizada[a, l, 2] && Normalizada[a, l, 1] > Normalizada[a, l, 2])
+                    if (max - min > 15 && modulo > 9 && Imagem[a, l, 0] > Imagem[a, l, 1] && Imagem[a, l, 0] > Imagem[a, l, 2] && Imagem[a, l, 1] > Imagem[a, l, 2])
                     {
                         Segmentada[a, l] = 0;
                     }
@@ -170,7 +183,6 @@ namespace Classificador
                     }
                 }
             }
-            pictureBox3.Image = Segmentada.ToBitmap();
         }
 
         public static double[] quickSort(double[] vetor)
@@ -219,10 +231,158 @@ namespace Classificador
             }
         }
 
+
+
         private void Button2_Click(object sender, EventArgs e)
         {
-            Imagem = (Imagem)Abrir();
-            pictureBox6.Image = Imagem.ToBitmap();
+            int erro = 0;
+            int certo = 0;
+            Imagem Molde;
+
+            int porcentagem = 0;
+            Molde = new Imagem("LetraA.bmp");
+            for (int j = 0; j < Molde.Altura; j++)
+            {
+                for (int k = 0; k < Molde.Largura; k++)
+                {
+                    if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+                    {
+                        certo++;
+                    }
+                    else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+                    {
+                        erro++;
+                    }
+                }
+            }
+            porcentagem = (certo * 100) / (certo + erro);
+            if (porcentagem >= 90)
+            {
+                label1.Text = "Letra A";
+            }
+
+            erro = 0;
+            certo = 0;
+            porcentagem = 0;
+            Molde = new Imagem("LetraB.bmp");
+            for (int j = 0; j < Molde.Altura; j++)
+            {
+                for (int k = 0; k < Molde.Largura; k++)
+                {
+                    if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+                    {
+                        certo++;
+                    }
+                    else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+                    {
+                        erro++;
+                    }
+                }
+            }
+            porcentagem = (certo * 100) / (certo + erro);
+            if (porcentagem >= 90)
+            {
+                label1.Text = "Letra B";
+            }
+
+            erro = 0;
+            certo = 0;
+            porcentagem = 0;
+            Molde = new Imagem("LetraC.bmp");
+            for (int j = 0; j < Molde.Altura; j++)
+            {
+                for (int k = 0; k < Molde.Largura; k++)
+                {
+                    if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+                    {
+                        certo++;
+                    }
+                    else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+                    {
+                        erro++;
+                    }
+                }
+            }
+            porcentagem = (certo * 100) / (certo + erro);
+            if (porcentagem >= 90)
+            {
+                label1.Text = "Letra C";
+            }
+
+            //    erro = 0;
+            //    certo = 0;
+            //    porcentagem = 0;
+            //    Molde = new Imagem("c2.bmp");
+            //    for (int j = 0; j < Molde.Altura; j++)
+            //    {
+            //        for (int k = 0; k < Molde.Largura; k++)
+            //        {
+            //            if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+            //            {
+            //                certo++;
+            //            }
+            //            else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+            //            {
+            //                erro++;
+            //            }
+            //        }
+            //    }
+            //    porcentagem = (certo * 100) / (certo + erro);
+            //    if (porcentagem >= 95)
+            //    {
+            //        label1.Text = "Letra C";
+            //    }
+
+            //    erro = 0;
+            //    certo = 0;
+            //    porcentagem = 0;
+            //    Molde = new Imagem("d.bmp");
+            //    for (int j = 0; j < Molde.Altura; j++)
+            //    {
+            //        for (int k = 0; k < Molde.Largura; k++)
+            //        {
+            //            if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+            //            {
+            //                certo++;
+            //            }
+            //            else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+            //            {
+            //                erro++;
+            //            }
+            //        }
+            //    }
+            //    porcentagem = (certo * 100) / (certo + erro);
+            //    if (porcentagem >= 93)
+            //    {
+            //        label1.Text = "Letra D";
+
+            //    }
+
+            //    erro = 0;
+            //    certo = 0;
+            //    porcentagem = 0;
+            //    Molde = new Imagem("e.bmp");
+            //    for (int j = 0; j < Molde.Altura; j++)
+            //    {
+            //        for (int k = 0; k < Molde.Largura; k++)
+            //        {
+            //            if (Molde[j, k] == 0 && Recortada[j, k] != 0)
+            //            {
+            //                certo++;
+            //            }
+            //            else if (Molde[j, k] == 0 && Recortada[j, k] == 0)
+            //            {
+            //                erro++;
+            //            }
+            //        }
+            //    }
+            //    porcentagem = (certo * 100) / (certo + erro);
+            //    if (porcentagem >= 95)
+            //    {
+            //        label1.Text = "Letra E";
+            //    }
+            //
         }
+
     }
 }
