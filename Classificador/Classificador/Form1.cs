@@ -21,30 +21,29 @@ namespace Classificador
         }
 
         private Imagem Imagem;
-        private Imagem Normalizada;
         private Imagem Segmentada;
-        private Imagem Mediana;
         private Imagem Recortada;
 
-        private Imagem Molde;
         /// <summary>
         /// Abre uma caixa de seleção para selecionar uma imagem e converte-la em um objeto tipo Imagem da Biblioteca DIPLi
         /// </summary>
         /// <returns></returns>
         private object Abrir()
         {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Multiselect = false;
-            openFileDialog.Title = "Selecionar Imagem";
-            openFileDialog.InitialDirectory = "C:\\";
-            openFileDialog.Filter = "Images (*.BMP;*.JPG;*.GIF,*.PNG,*.TIFF)|*.BMP;*.JPG;*.GIF;*.PNG;*.TIFF|" + "All files (*.*)|*.*";
-            openFileDialog.CheckFileExists = true;
-            openFileDialog.CheckPathExists = true;
-            openFileDialog.FilterIndex = 2;
-            openFileDialog.RestoreDirectory = true;
-            openFileDialog.ReadOnlyChecked = true;
-            openFileDialog.ShowReadOnly = true;
-            openFileDialog.FileName = "";
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Multiselect = false,
+                Title = "Selecionar Imagem",
+                InitialDirectory = "C:\\",
+                Filter = "Images (*.BMP;*.JPG;*.GIF,*.PNG,*.TIFF)|*.BMP;*.JPG;*.GIF;*.PNG;*.TIFF|" + "All files (*.*)|*.*",
+                CheckFileExists = true,
+                CheckPathExists = true,
+                FilterIndex = 2,
+                RestoreDirectory = true,
+                ReadOnlyChecked = true,
+                ShowReadOnly = true,
+                FileName = ""
+            };
 
             DialogResult dr = openFileDialog.ShowDialog();
             Imagem image;
@@ -52,7 +51,7 @@ namespace Classificador
             {
                 string file = openFileDialog.FileName.ToString();
                 image = new Imagem(file);
-                Bitmap bit = ResizeImage(image.ToBitmap(), 85, 112);
+                Bitmap bit = ResizeImage(image.ToBitmap(), 100, 100);
                 image = new Imagem(bit);
                 return image;
             }
@@ -62,6 +61,13 @@ namespace Classificador
             }
         }
 
+        /// <summary>
+        /// Redimensiona uma imagem
+        /// </summary>
+        /// <param name="image">Imagem a ser redimensionada</param>
+        /// <param name="width">Largura</param>
+        /// <param name="height">Altura</param>
+        /// <returns></returns>
         Bitmap ResizeImage(Image image, int width, int height)
         {
             var destRect = new Rectangle(0, 0, width, height);
@@ -88,6 +94,330 @@ namespace Classificador
             return destImage;
         }
 
+        private void Sort()
+        {
+            double[] vetor = new double[9];
+            Imagem R = new Imagem(Segmentada.Largura, Segmentada.Altura);
+            for (int i = 1; i < Segmentada.Altura - 1; i++)
+            {
+                for (int j = 1; j < Segmentada.Largura - 1; j++)
+                {
+                    vetor[0] = (Segmentada[i - 1, j - 1]);
+                    vetor[1] = (Segmentada[i - 1, j]);
+                    vetor[2] = (Segmentada[i - 1, j + 1]);
+                    vetor[3] = (Segmentada[i, j - 1]);
+                    vetor[4] = (Segmentada[i, j + 1]);
+                    vetor[5] = (Segmentada[i + 1, j - 1]);
+                    vetor[6] = (Segmentada[i + 1, j]);
+                    vetor[7] = (Segmentada[i + 1, j + 1]);
+                    vetor[8] = (Segmentada[i, j]);
+                    vetor = QuickSort(vetor);
+                    R[i, j] = vetor[4];
+                }
+            }
+            for (int i = 0; i < Segmentada.Altura; i++)
+            {
+                for (int j = 0; j < Segmentada.Largura; j++)
+                {
+                    if(i == 0 || i == Segmentada.Altura || j == 0 || j == Segmentada.Largura)
+                    {
+                        R[i ,j] = 0;
+                    }
+                }
+            }
+            Segmentada = R;
+        }
+
+        /// <summary>
+        /// Delinear borda em azul
+        /// </summary>
+        private void DelinearBorda()
+        {
+            Imagem i = new Imagem(Recortada.Largura, Recortada.Altura, Recortada.Tipo);
+            for (int l = 0; l < Recortada.Largura; l++)
+            {
+                for (int a = 0; a < Recortada.Altura; a++)
+                {
+                    if(Recortada[a, l, 0] == 0 && Recortada[a, l, 1] == 0 && Recortada[a, l, 2] == 0)
+                    {
+                        if(l == 0 && a == 0)
+                        {
+                            if(Recortada[a + 1, l,0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if(Recortada[a + 1, l + 1, 0] != 0 || Recortada[a + 1, l + 1, 1] != 0 || Recortada[a + 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if(l == 0 && a == Recortada.Altura)
+                        {
+                            if (i[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l + 1, 0] != 0 || Recortada[a - 1, l + 1, 1] != 0 || Recortada[a - 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (l == Recortada.Largura && a == 0)
+                        {
+                            if (Recortada[a + 1, l, 0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l - 1, 0] != 0 || Recortada[a + 1, l - 1, 1] != 0 || Recortada[a + 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (l == Recortada.Largura && a == Recortada.Altura)
+                        {
+                            if (Recortada[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l - 1, 0] != 0 || Recortada[a - 1, l - 1, 1] != 0 || Recortada[a - 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (l == 0)
+                        {
+                            if (Recortada[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l, 0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l + 1, 0] != 0 || Recortada[a + 1, l + 1, 1] != 0 || Recortada[a + 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l + 1, 0] != 0 || Recortada[a - 1, l + 1, 1] != 0 || Recortada[a - 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (l == Recortada.Largura)
+                        {
+                            if (Recortada[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l, 0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l - 1, 0] != 0 || Recortada[a + 1, l - 1, 1] != 0 || Recortada[a + 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l - 1, 0] != 0 || Recortada[a - 1, l - 1, 1] != 0 || Recortada[a - 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (a == Recortada.Altura)
+                        {
+                            if (Recortada[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l - 1, 0] != 0 || Recortada[a - 1, l - 1, 1] != 0 || Recortada[a - 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l + 1, 0] != 0 || Recortada[a - 1, l + 1, 1] != 0 || Recortada[a - 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (a == 0)
+                        {
+                            if (Recortada[a + 1, l, 0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l - 1, 0] != 0 || Recortada[a + 1, l - 1, 1] != 0 || Recortada[a + 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l + 1, 0] != 0 || Recortada[a + 1, l + 1, 1] != 0 || Recortada[a + 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                        else if (a != 0 && l != 0 && a != Recortada.Altura && l != Recortada.Largura)
+                        {
+                            if (Recortada[a + 1, l, 0] != 0 || Recortada[a + 1, l, 1] != 0 || Recortada[a + 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l, 0] != 0 || Recortada[a - 1, l, 1] != 0 || Recortada[a - 1, l, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l + 1, 0] != 0 || Recortada[a, l + 1, 1] != 0 || Recortada[a, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a, l - 1, 0] != 0 || Recortada[a, l - 1, 1] != 0 || Recortada[a, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l - 1, 0] != 0 || Recortada[a + 1, l - 1, 1] != 0 || Recortada[a + 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a + 1, l + 1, 0] != 0 || Recortada[a + 1, l + 1, 1] != 0 || Recortada[a + 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l - 1, 0] != 0 || Recortada[a - 1, l - 1, 1] != 0 || Recortada[a - 1, l - 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                            else if (Recortada[a - 1, l + 1, 0] != 0 || Recortada[a - 1, l + 1, 1] != 0 || Recortada[a - 1, l + 1, 2] != 0)
+                            {
+                                i[a, l, 0] = 0;
+                                i[a, l, 1] = 0;
+                                i[a, l, 2] = 255;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        i[a, l, 0] = Recortada[a, l, 0];
+                        i[a, l, 1] = Recortada[a, l, 1];
+                        i[a, l, 2] = Recortada[a, l, 2];
+                    }
+                }
+            }
+            Recortada = i;
+        }
 
         private void Button1_Click(object sender, EventArgs e)
         {
@@ -97,37 +427,14 @@ namespace Classificador
                 label1.Text = "";
                 pictureBox1.Image = Imagem.ToBitmap();
                 Segmentar();
-                double[] vetor = new double[9];
-
-                Imagem R = new Imagem(Segmentada.Largura, Segmentada.Altura);
-
-                for (int i = 2; i < Segmentada.Altura - 2; i++)
-                {
-                    for (int j = 2; j < Segmentada.Largura - 2; j++)
-                    {
-                        vetor[0] = (Segmentada[i - 1, j - 1]);
-                        vetor[1] = (Segmentada[i - 1, j]);
-                        vetor[2] = (Segmentada[i - 1, j + 1]);
-                        vetor[3] = (Segmentada[i, j - 1]);
-                        vetor[4] = (Segmentada[i, j + 1]);
-                        vetor[5] = (Segmentada[i + 1, j - 1]);
-                        vetor[6] = (Segmentada[i + 1, j]);
-                        vetor[7] = (Segmentada[i + 1, j + 1]);
-                        vetor[8] = (Segmentada[i, j]);
-
-                        vetor = quickSort(vetor);
-
-                        R[i, j] = vetor[4];
-                    }
-                }
-                Mediana = R;
+                Sort();
                 Recorte();
+                DelinearBorda();
             }
             catch (Exception)
             {
                 MessageBox.Show("Houve um erro na seleção de imagem", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
         }
 
         /// <summary>
@@ -136,20 +443,21 @@ namespace Classificador
         private void Recorte()
         {
             Recortada = new Imagem(Imagem.Largura, Imagem.Altura, TipoImagem.Colorida);
-            for (int i = 0; i < Mediana.Altura; i++)
+            for (int i = 0; i < Segmentada.Altura; i++)
             {
-                for (int j = 0; j < Mediana.Largura; j++)
+                for (int j = 0; j < Segmentada.Largura; j++)
                 {
-                    for (int c = 0; c < 3; c++)
+                    if (Segmentada[i, j] == 255)
                     {
-                        if (Mediana[i, j] == 255)
-                        {
-                            Recortada[i, j, c] = 0;
-                        }
-                        else
-                        {
-                            Recortada[i, j, c] = Imagem[i, j, c];
-                        }
+                        Recortada[i, j, 0] = 0;
+                        Recortada[i, j, 1] = 0;
+                        Recortada[i, j, 2] = 0;
+                    }
+                    else
+                    {
+                        Recortada[i, j, 0] = Imagem[i, j, 0];
+                        Recortada[i, j, 1] = Imagem[i, j, 1];
+                        Recortada[i, j, 2] = Imagem[i, j, 2];
                     }
                 }
             }
@@ -171,7 +479,7 @@ namespace Classificador
                     double modulo = Imagem[a, l, 0] - Imagem[a, l, 1];
                     if (modulo < 0)
                     {
-                        modulo = modulo * -1;
+                        modulo *= -1;
                     }
                     if (max - min > 15 && modulo > 9 && Imagem[a, l, 0] > Imagem[a, l, 1] && Imagem[a, l, 0] > Imagem[a, l, 2] && Imagem[a, l, 1] > Imagem[a, l, 2])
                     {
@@ -185,17 +493,17 @@ namespace Classificador
             }
         }
 
-        public static double[] quickSort(double[] vetor)
+        private static double[] QuickSort(double[] vetor)
         {
             int inicio = 0;
             int fim = vetor.Length - 1;
 
-            quickSort(vetor, inicio, fim);
+            QuickSort(vetor, inicio, fim);
 
             return vetor;
         }
 
-        private static void quickSort(double[] vetor, int inicio, int fim)
+        private static void QuickSort(double[] vetor, int inicio, int fim)
         {
             if (inicio < fim)
             {
@@ -226,12 +534,10 @@ namespace Classificador
                 vetor[inicio] = vetor[f];
                 vetor[f] = p;
 
-                quickSort(vetor, inicio, f - 1);
-                quickSort(vetor, f + 1, fim);
+                QuickSort(vetor, inicio, f - 1);
+                QuickSort(vetor, f + 1, fim);
             }
         }
-
-
 
         private void Button2_Click(object sender, EventArgs e)
         {
@@ -383,6 +689,5 @@ namespace Classificador
             //    }
             //
         }
-
     }
 }
